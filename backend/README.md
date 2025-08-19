@@ -33,6 +33,7 @@ High-performance FastAPI backend for AI-powered ESG initiative extraction from P
   - **macOS**: `brew install tesseract`
   - **Windows**: Download from [GitHub releases](https://github.com/UB-Mannheim/tesseract/wiki)
   - **Note**: The application will work without Tesseract but OCR functionality will be disabled
+  - On Windows, the application attempts to auto-detect the Tesseract installation path as implemented in `utils/extract.py`
 
 ## Installation
 
@@ -91,7 +92,7 @@ curl -X POST "http://localhost:8000/api/upload" \
 **Request Parameters:**
 - `file`: PDF file (max 50MB)
 
-**Response (201 Created):**
+**Response (200 OK):**
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -131,8 +132,7 @@ curl -X GET "http://localhost:8000/api/results/550e8400-e29b-41d4-a716-446655440
     "document_name": "sustainability_report.pdf",
     "total_pages": 85,
     "processing_time": 42,
-    "extraction_method": "selectable",
-    "text_length": 125847
+    "extraction_method": "selectable"
   }
 }
 ```
@@ -381,17 +381,7 @@ spec:
 - **Throughput**: 50-100 documents/hour with 4 workers
 - **Accuracy**: 85-95% framework detection rate
 
-### Monitoring Endpoints
-```bash
-# Health check with detailed status
-curl http://localhost:8000/api/health
 
-# Processing metrics
-curl http://localhost:8000/metrics  # Prometheus format
-
-# Database status
-curl http://localhost:8000/api/status/db
-```
 
 ### Logging Configuration
 ```python

@@ -62,8 +62,8 @@ An AI-powered ESG (Environmental, Social, Governance) initiative extraction tool
 
 1. **Clone the repository**
 ```bash
-git clone <YOUR_GIT_URL>
-cd insight-scan-dialog
+git clone https://github.com/Chandu4143/sustainability-lens
+cd sustainability-lens
 ```
 
 2. **Setup Backend**
@@ -103,11 +103,10 @@ npm run dev
 
 ### Demo Video
 
-Add your Loom or YouTube demo link here:
+YouTube demo link here:
 
-- Demo: https://your-demo-link-here
+- Demo: https://youtu.be/yBHxFS8pl7g?si=1LRj2fI7hpFguk4-
 
-If sharing publicly, ensure any sensitive documents are redacted or use the included sample.
 
 ## 📚 Usage
 
@@ -183,9 +182,6 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 - Use Docker containers for deployment
 - Implement background task processing
 
-## DECISIONS
-
-See `DECISIONS.md` for a concise write-up on product choices and tradeoffs.
 
 ## 🔍 ESG Frameworks Supported
 
