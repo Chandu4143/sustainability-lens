@@ -1,5 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -7,18 +9,25 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ESGInitiative } from '@/pages/Index';
 
-// Set up PDF.js worker with fallbacks
+// Set up PDF.js worker - try local first, fallback to CDN
 try {
-  // Try CDN first
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
-} catch (error) {
-  console.warn('Failed to set PDF.js worker from CDN, using local fallback');
-  // Fallback to local worker
+  // Try to use local worker first
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/build/pdf.worker.min.js',
     import.meta.url,
   ).toString();
+  console.log('Using local PDF.js worker');
+} catch (error) {
+  // Fallback to CDN
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+  console.log('Using CDN PDF.js worker');
 }
+
+// Log worker setup for debugging
+console.log('PDF.js worker configured:', {
+  version: pdfjs.version,
+  workerSrc: pdfjs.GlobalWorkerOptions.workerSrc
+});
 
 interface PDFViewerProps {
   documentId: string;
@@ -54,29 +63,69 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
   // Debug logging
   console.log('PDFViewer props:', { documentId, documentName, pdfUrl });
 
+  // Add timeout for loading
+  React.useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        setError('PDF loading timed out. Please check if the backend server is running.');
+        setIsLoading(false);
+      }
+    }, 30000); // 30 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [isLoading]);
+
+  // Test PDF URL accessibility
+  React.useEffect(() => {
+    console.log('Testing PDF URL accessibility:', pdfUrl);
+    fetch(pdfUrl, { method: 'GET', headers: { 'Range': 'bytes=0-1' } })
+      .then(response => {
+        console.log('PDF URL test response:', response.status, response.statusText);
+        if (!response.ok) {
+          console.error('PDF URL not accessible:', response.status);
+        } else {
+          console.log('PDF URL is accessible');
+        }
+      })
+      .catch(error => {
+        console.error('PDF URL test failed:', error);
+      });
+  }, [pdfUrl]);
+
   const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
+    console.log('PDF loaded successfully!', { numPages, documentName });
     setNumPages(numPages);
     setIsLoading(false);
     
     // Navigate to highlighted initiative's page if provided
     if (highlightedInitiative) {
+      console.log('Navigating to highlighted initiative page:', highlightedInitiative.pageNumber);
       setCurrentPage(highlightedInitiative.pageNumber);
     }
-  }, [highlightedInitiative]);
+  }, [highlightedInitiative, documentName]);
 
   const onDocumentLoadError = useCallback((error: Error) => {
     console.error('PDF load error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     console.error('PDF URL:', pdfUrl);
     console.error('Document ID:', documentId);
     
     // More specific error messages
     let errorMessage = 'Failed to load PDF document';
-    if (error.message.includes('CORS')) {
-      errorMessage = 'CORS error: Unable to load PDF. Please check backend server.';
+    if (error.message.includes('CORS') || error.message.includes('NetworkError')) {
+      errorMessage = 'Cannot connect to backend server. Please ensure the backend is running on port 8000.';
     } else if (error.message.includes('404')) {
-      errorMessage = 'PDF not found. Document may not exist.';
-    } else if (error.message.includes('network')) {
-      errorMessage = 'Network error: Cannot reach backend server.';
+      errorMessage = 'PDF document not found. The document may have been deleted or moved.';
+    } else if (error.message.includes('fetch')) {
+      errorMessage = 'Network error: Unable to reach backend server at localhost:8000.';
+    } else if (error.message.includes('worker')) {
+      errorMessage = 'PDF.js worker failed to load. This might be a network issue or CDN problem.';
+    } else {
+      errorMessage = `PDF loading failed: ${error.message}`;
     }
     
     setError(errorMessage);
@@ -271,6 +320,12 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
                 <p className="text-muted-foreground">Loading PDF...</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Document: {documentName}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  ID: {documentId}
+                </p>
               </div>
             )}
 
@@ -287,6 +342,17 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
                     <li>Check browser console for errors</li>
                   </ul>
                 </div>
+                
+                {/* Fallback iframe viewer */}
+                <div className="mb-4">
+                  <p className="text-sm text-muted-foreground mb-2">Try fallback PDF viewer:</p>
+                  <iframe 
+                    src={pdfUrl} 
+                    className="w-full h-96 border rounded" 
+                    title="PDF Fallback Viewer"
+                  />
+                </div>
+                
                 <div className="space-x-2">
                   <Button variant="outline" onClick={() => window.open(pdfUrl, '_blank')}>
                     Open PDF Directly
@@ -298,13 +364,20 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
               </div>
             )}
 
-            {!isLoading && !error && (
+            {!error && (
               <div className="relative">
                 <Document
                   file={pdfUrl}
                   onLoadSuccess={onDocumentLoadSuccess}
                   onLoadError={onDocumentLoadError}
+                  onLoadProgress={({ loaded, total }) => {
+                    console.log('PDF loading progress:', { loaded, total, percentage: Math.round((loaded / total) * 100) });
+                  }}
                   className="flex justify-center"
+                  options={{
+                    cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+                    cMapPacked: true,
+                  }}
                 >
                   <div className="relative">
                     <Page
@@ -329,7 +402,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
                       const [x1, y1, x2, y2] = initiative.bbox;
                       return (
                         <div
-                          key={initiative.id}
+                          key={`highlight-${initiative.id}`}
                           className={cn(
                             "absolute border-2 rounded transition-all bg-yellow-300/30",
                             categoryColors[initiative.category],

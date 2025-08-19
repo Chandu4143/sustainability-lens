@@ -15,6 +15,7 @@ export interface ESGInitiative {
   pageNumber: number;
   confidence: number; // This can stay as number (TypeScript number includes both int and float)
   category: 'Environmental' | 'Social' | 'Governance';
+  bbox: [number, number, number, number]; // [x1, y1, x2, y2] as percentages
 }
 
 export interface AnalysisResult {
@@ -76,7 +77,8 @@ const Index = () => {
           evidence: match.evidence_text,
           pageNumber: match.page_number,
           confidence: match.confidence_score,
-          category: match.category as 'Environmental' | 'Social' | 'Governance'
+          category: match.category as 'Environmental' | 'Social' | 'Governance',
+          bbox: match.bbox || [10, 10, 90, 20] // Default bbox if not provided by backend
         })),
         documentName: resultsData.metadata.document_name,
         totalPages: resultsData.metadata.total_pages,
