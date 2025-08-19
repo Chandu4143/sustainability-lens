@@ -60,6 +60,9 @@ export const LoadingState = ({ fileName }: LoadingStateProps) => {
             <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
           </div>
           <Progress value={progress} className="h-2" />
+          <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">
+            Estimated: 30–60s (OCR may take longer)
+          </p>
         </div>
 
         {/* Steps */}

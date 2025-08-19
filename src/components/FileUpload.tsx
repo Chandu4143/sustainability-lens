@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload, FileText, X, AlertCircle } from "lucide-react";
+import { Upload, FileText, X, AlertCircle, Shield, Clock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +12,7 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string>("");
+  const [deleteAfter, setDeleteAfter] = useState<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -73,6 +74,19 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     }
   };
 
+  const handleTrySample = async () => {
+    try {
+      const res = await fetch("/sample.pdf");
+      if (!res.ok) throw new Error("Sample file not found");
+      const blob = await res.blob();
+      const file = new File([blob], "sample.pdf", { type: "application/pdf" });
+      setSelectedFile(file);
+      toast({ title: "Loaded sample report", description: "You can analyze it or switch files." });
+    } catch (e) {
+      toast({ title: "Sample not available", description: "Place a sample.pdf in the public folder to enable this.", variant: "destructive" });
+    }
+  };
+
   const clearFile = () => {
     setSelectedFile(null);
     setError("");
@@ -104,13 +118,19 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
         onDragOver={handleDrag}
         onDrop={handleDrop}
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf"
-          onChange={handleFileSelect}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-        />
+        {/* Screenreader live region for status updates */}
+        <div className="sr-only" aria-live="polite">
+          {selectedFile ? `Selected ${selectedFile.name}` : "No file selected"}
+        </div>
+        {!selectedFile && (
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf"
+            onChange={handleFileSelect}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          />
+        )}
 
         {!selectedFile ? (
           <div className="text-center">
@@ -127,9 +147,8 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
               {dragActive ? "Drop your PDF here" : "Upload Sustainability Report"}
             </h3>
             
-            <p className="text-muted-foreground mb-4">
-              Drag and drop your PDF file here, or click to browse
-            </p>
+            <p className="text-muted-foreground mb-2">Drag and drop your PDF here, or click to browse.</p>
+            <p className="text-xs text-muted-foreground mb-4 inline-flex items-center gap-2"><Clock className="w-4 h-4" /> Estimated: 30–60s (OCR may take longer)</p>
             
             <Button 
               variant="outline" 
@@ -141,6 +160,20 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
             <p className="text-xs text-muted-foreground mt-3">
               PDF files only • Maximum 50MB
             </p>
+
+            {/* What we look for */}
+            <div className="mt-4 flex items-center justify-center gap-2 text-xs">
+              <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground">SBTi</span>
+              <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground">GRI</span>
+              <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground">SLCP</span>
+            </div>
+
+            {/* Try sample */}
+            <div className="mt-4">
+              <Button variant="ghost" size="sm" onClick={handleTrySample} className="inline-flex items-center gap-2">
+                <Sparkles className="w-4 h-4" /> Try sample report
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -166,13 +199,18 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
               </Button>
             </div>
 
+            {/* Inline preview (first page) */}
+            <div className="rounded-lg overflow-hidden border bg-card">
+              <object data={selectedFile ? URL.createObjectURL(selectedFile) + "#page=1" : undefined} type="application/pdf" className="w-full h-40" aria-label="PDF preview (first page)"></object>
+            </div>
+
             <div className="flex space-x-3">
               <Button 
                 onClick={handleAnalyze}
                 variant="gradient"
                 className="flex-1"
               >
-                Analyze ESG Initiatives
+                Analyze (30–60s)
               </Button>
               <Button 
                 variant="outline" 
@@ -180,6 +218,15 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
               >
                 Change File
               </Button>
+            </div>
+
+            {/* Privacy controls */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div className="inline-flex items-center gap-2"><Shield className="w-4 h-4" /> Processed securely • No docs stored by default</div>
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={deleteAfter} onChange={(e) => setDeleteAfter(e.target.checked)} />
+                Delete file after analysis
+              </label>
             </div>
           </div>
         )}

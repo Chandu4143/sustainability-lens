@@ -10,7 +10,8 @@ import {
   Users,
   TrendingUp,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Copy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,10 +20,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { AnalysisResult, ESGInitiative } from "@/pages/Index";
+import { PDFViewer } from "@/components/PDFViewer";
 
 interface AnalysisResultsProps {
   result: AnalysisResult;
   onReset: () => void;
+  documentId?: string;
 }
 
 const categoryIcons = {
@@ -37,9 +40,13 @@ const categoryColors = {
   Governance: "text-primary"
 };
 
-export const AnalysisResults = ({ result, onReset }: AnalysisResultsProps) => {
+export const AnalysisResults = ({ result, onReset, documentId }: AnalysisResultsProps) => {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("confidence");
+  const [isExporting, setIsExporting] = useState(false);
+  const [showPDFViewer, setShowPDFViewer] = useState(false);
+  const [highlightedInitiative, setHighlightedInitiative] = useState<ESGInitiative | undefined>();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const filteredInitiatives = result.initiatives.filter(initiative => 
     selectedCategory === "all" || initiative.category === selectedCategory
@@ -59,12 +66,90 @@ export const AnalysisResults = ({ result, onReset }: AnalysisResultsProps) => {
   };
 
   const handleViewInDocument = (initiative: ESGInitiative) => {
-    // In a real app, this would open the PDF viewer and highlight the specific text
-    console.log(`Navigate to page ${initiative.pageNumber} and highlight: "${initiative.evidence}"`);
+    console.log('View in document clicked:', { documentId, initiative: initiative.framework });
+    
+    if (!documentId) {
+      console.error('Document ID not available for PDF viewing:', documentId);
+      alert('Document ID not available. Please refresh and try uploading again.');
+      return;
+    }
+    
+    setHighlightedInitiative(initiative);
+    setShowPDFViewer(true);
+  };
+
+  const copyEvidence = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('Evidence copied');
+    } catch {
+      alert('Copy failed');
+    }
+  };
+
+  const handleExportResults = async () => {
+    setIsExporting(true);
+    try {
+      // Create export data
+      const exportData = {
+        documentName: result.documentName,
+        totalPages: result.totalPages,
+        processingTime: result.processingTime,
+        initiatives: result.initiatives.map(initiative => ({
+          id: initiative.id,
+          framework: initiative.framework,
+          description: initiative.description,
+          evidence: initiative.evidence,
+          pageNumber: initiative.pageNumber,
+          confidence: initiative.confidence,
+          category: initiative.category
+        })),
+        summary: {
+          totalInitiatives: result.initiatives.length,
+          averageConfidence: Math.round(result.initiatives.reduce((sum, i) => sum + i.confidence, 0) / result.initiatives.length),
+          categoryCounts: {
+            Environmental: result.initiatives.filter(i => i.category === "Environmental").length,
+            Social: result.initiatives.filter(i => i.category === "Social").length,
+            Governance: result.initiatives.filter(i => i.category === "Governance").length,
+          }
+        },
+        exportedAt: new Date().toISOString()
+      };
+
+      // Create and download JSON file
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `esg-analysis-${result.documentName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-${Date.now()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting results:', error);
+      alert('Failed to export results. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <>
+      {showPDFViewer && documentId && (
+        <PDFViewer
+          documentId={documentId}
+          documentName={result.documentName}
+          highlightedInitiative={highlightedInitiative}
+          onClose={() => setShowPDFViewer(false)}
+          initiatives={result.initiatives}
+        />
+      )}
+      
+      <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div className="bg-card rounded-2xl shadow-large border p-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
@@ -84,9 +169,13 @@ export const AnalysisResults = ({ result, onReset }: AnalysisResultsProps) => {
               <RefreshCw className="w-4 h-4 mr-2" />
               New Analysis
             </Button>
-            <Button variant="outline">
+            <Button 
+              variant="outline" 
+              onClick={handleExportResults}
+              disabled={isExporting}
+            >
               <Download className="w-4 h-4 mr-2" />
-              Export Results
+              {isExporting ? "Exporting..." : "Export Results"}
             </Button>
           </div>
         </div>
@@ -107,7 +196,7 @@ export const AnalysisResults = ({ result, onReset }: AnalysisResultsProps) => {
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-foreground">
-              {Math.round(result.initiatives.reduce((sum, i) => sum + i.confidence, 0) / result.initiatives.length)}%
+              {result.initiatives.length > 0 ? Math.round(result.initiatives.reduce((sum, i) => sum + i.confidence, 0) / result.initiatives.length) : 0}%
             </div>
             <div className="text-sm text-muted-foreground">Avg Confidence</div>
           </div>
@@ -195,7 +284,7 @@ export const AnalysisResults = ({ result, onReset }: AnalysisResultsProps) => {
                           {initiative.category}
                         </Badge>
                         <Badge variant="secondary" className="text-xs">
-                          {initiative.confidence}% confidence
+                          {Math.round(initiative.confidence)}% confidence
                         </Badge>
                       </div>
                       
@@ -203,16 +292,29 @@ export const AnalysisResults = ({ result, onReset }: AnalysisResultsProps) => {
                         {initiative.framework}
                       </h3>
                       
-                      <p className="text-muted-foreground mb-4">
+                      <p className="text-muted-foreground mb-3">
                         {initiative.description}
                       </p>
-                      
-                      <div className="bg-muted/50 p-4 rounded-lg mb-4">
-                        <p className="text-sm font-medium text-foreground mb-2">Evidence from document:</p>
-                        <p className="text-sm text-muted-foreground italic">
-                          "{initiative.evidence}"
-                        </p>
-                      </div>
+
+                      <button className="text-sm text-primary underline mb-3" onClick={() => setExpandedId(expandedId === initiative.id ? null : initiative.id)} aria-expanded={expandedId === initiative.id}>
+                        {expandedId === initiative.id ? 'Hide snippet' : 'Show snippet and actions'}
+                      </button>
+                      {expandedId === initiative.id && (
+                        <div className="bg-muted/50 p-4 rounded-lg mb-4">
+                          <p className="text-sm font-medium text-foreground mb-2">Evidence from document:</p>
+                          <p className="text-sm text-muted-foreground italic mb-3">
+                            "{initiative.evidence}"
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => copyEvidence(initiative.evidence)}>
+                              <Copy className="w-4 h-4 mr-2" /> Copy
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleViewInDocument(initiative)}>
+                              <ExternalLink className="w-4 h-4 mr-2" /> Jump to evidence
+                            </Button>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
@@ -222,17 +324,12 @@ export const AnalysisResults = ({ result, onReset }: AnalysisResultsProps) => {
                           </span>
                           <span className="flex items-center">
                             <TrendingUp className="w-4 h-4 mr-1" />
-                            {initiative.confidence}% match
+                            {Math.round(initiative.confidence)}% match
                           </span>
                         </div>
                         
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleViewInDocument(initiative)}
-                        >
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          View in Document
+                        <Button variant="outline" size="sm" onClick={() => handleViewInDocument(initiative)}>
+                          <ExternalLink className="w-4 h-4 mr-2" /> View in Document
                         </Button>
                       </div>
                     </div>
@@ -256,5 +353,6 @@ export const AnalysisResults = ({ result, onReset }: AnalysisResultsProps) => {
         </div>
       </div>
     </div>
+    </>
   );
 };

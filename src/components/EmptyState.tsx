@@ -1,4 +1,4 @@
-import { FileText, Upload, Shield, Leaf, Users } from "lucide-react";
+import { FileText, Upload, Shield, Leaf, Users, Clock, Lock } from "lucide-react";
 import { FileUpload } from "./FileUpload";
 
 interface EmptyStateProps {
@@ -20,41 +20,33 @@ export const EmptyState = ({ onFileUpload }: EmptyStateProps) => {
             </div>
           </div>
         </div>
-        
-        <h1 className="text-4xl font-bold text-foreground mb-4">
-          Extract ESG Initiatives with <span className="bg-gradient-primary bg-clip-text text-transparent">AI Precision</span>
-        </h1>
-        
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          Upload any sustainability report and instantly identify all ESG frameworks, regulations, 
-          and industry initiatives with direct links to evidence in the document.
-        </p>
-      </div>
 
-      {/* Features Grid */}
-      <div className="grid md:grid-cols-3 gap-6 mb-12">
-        <div className="bg-card p-6 rounded-xl shadow-soft border hover:shadow-medium transition-smooth">
-          <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center mb-4">
-            <Shield className="w-6 h-6 text-secondary" />
-          </div>
-          <h3 className="text-lg font-semibold text-foreground mb-2">Governance Frameworks</h3>
-          <p className="text-muted-foreground">Identify compliance with governance standards, board structures, and risk management frameworks.</p>
+        <h1 className="text-4xl font-bold text-foreground mb-3">
+          Extract ESG initiatives in seconds
+        </h1>
+
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+          Upload a sustainability report — we highlight frameworks and link you to exact evidence inside the PDF. Works with scanned & text PDFs.
+        </p>
+
+        {/* Micro-strap badges */}
+        <div className="mt-6 flex items-center justify-center gap-2">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm">
+            <Shield className="w-4 h-4" /> Governance
+          </span>
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-sm">
+            <Leaf className="w-4 h-4" /> Environmental
+          </span>
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent-foreground text-sm">
+            <Users className="w-4 h-4" /> Social
+          </span>
         </div>
-        
-        <div className="bg-card p-6 rounded-xl shadow-soft border hover:shadow-medium transition-smooth">
-          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-            <Leaf className="w-6 h-6 text-primary" />
-          </div>
-          <h3 className="text-lg font-semibold text-foreground mb-2">Environmental Initiatives</h3>
-          <p className="text-muted-foreground">Extract carbon targets, environmental certifications, and sustainability commitments.</p>
-        </div>
-        
-        <div className="bg-card p-6 rounded-xl shadow-soft border hover:shadow-medium transition-smooth">
-          <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-4">
-            <Users className="w-6 h-6 text-accent-foreground" />
-          </div>
-          <h3 className="text-lg font-semibold text-foreground mb-2">Social Programs</h3>
-          <p className="text-muted-foreground">Discover diversity initiatives, labor standards, and community engagement programs.</p>
+
+        {/* Trust row */}
+        <div className="mt-4 flex items-center justify-center gap-6 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-2"><Lock className="w-4 h-4" /> Processed securely</span>
+          <span className="inline-flex items-center gap-2"><Clock className="w-4 h-4" /> Typical analysis 30–60s</span>
+          <span>No docs stored by default</span>
         </div>
       </div>
 
@@ -62,16 +54,15 @@ export const EmptyState = ({ onFileUpload }: EmptyStateProps) => {
       <div className="bg-card rounded-2xl shadow-large border p-8">
         <div className="text-center mb-6">
           <Upload className="w-8 h-8 text-primary mx-auto mb-3" />
-          <h2 className="text-2xl font-semibold text-foreground mb-2">Upload Your Sustainability Report</h2>
-          <p className="text-muted-foreground">Supports PDF files up to 50MB. Works with both text and scanned documents.</p>
+          <h2 className="text-2xl font-semibold text-foreground mb-2">Upload your sustainability report</h2>
+          <p className="text-muted-foreground">PDF up to 50MB. We’ll extract frameworks and link you directly to the evidence.</p>
         </div>
         
         <FileUpload onFileUpload={onFileUpload} />
         
         <div className="mt-6 pt-6 border-t">
           <p className="text-sm text-muted-foreground text-center">
-            Your documents are processed securely and never stored permanently. 
-            <br />Analysis typically completes in 30-60 seconds.
+            Processed securely • Typical analysis 30–60s • No docs stored by default
           </p>
         </div>
       </div>

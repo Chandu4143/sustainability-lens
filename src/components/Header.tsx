@@ -10,7 +10,7 @@ export const Header = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-foreground">Sustainability Lens</h1>
-            <p className="text-sm text-muted-foreground">AI-powered ESG initiative analysis</p>
+            <p className="text-sm text-muted-foreground">Processed securely • Typical analysis 30–60s • No docs stored by default</p>
           </div>
         </div>
       </div>

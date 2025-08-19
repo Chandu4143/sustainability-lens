@@ -5,6 +5,21 @@
 /* Professional Sustainability Analysis Design System */
 
 @layer base {
+  /* Add line-clamp utilities for text truncation */
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
   :root {
     /* Base colors - Professional palette */
     --background: 210 40% 98%;
@@ -17,8 +32,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 210 12% 16%;
 
-    /* Primary - Professional blue for analysis tools */
-    --primary: 214 84% 56%;
+    /* Primary - brand blue */
+    --primary: 217 100% 50%; /* #0f6fff */
     --primary-foreground: 0 0% 100%;
     --primary-hover: 214 84% 46%;
     --primary-glow: 214 84% 76%;
@@ -32,8 +47,8 @@
     --muted: 210 30% 96%;
     --muted-foreground: 210 12% 45%;
 
-    /* Accent - Warm accent for highlights */
-    --accent: 43 74% 66%;
+    /* Accent - warm yellow for evidence */
+    --accent: 43 100% 65%; /* #ffd54b */
     --accent-foreground: 210 12% 16%;
 
     /* Status colors */
@@ -144,4 +159,10 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Utilities for gradient backgrounds */
+@layer utilities {
+  .bg-gradient-primary { background-image: var(--gradient-primary); }
+  .bg-gradient-surface { background-image: var(--gradient-surface); }
 }

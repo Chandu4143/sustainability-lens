@@ -13,7 +13,7 @@ export interface ESGInitiative {
   description: string;
   evidence: string;
   pageNumber: number;
-  confidence: number;
+  confidence: number; // This can stay as number (TypeScript number includes both int and float)
   category: 'Environmental' | 'Social' | 'Governance';
 }
 
@@ -28,6 +28,7 @@ const Index = () => {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [documentId, setDocumentId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleFileUpload = async (file: File) => {
@@ -35,27 +36,64 @@ const Index = () => {
     setIsAnalyzing(true);
     
     try {
-      // Simulate API call with delay
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', file);
       
-      // Mock successful analysis
-      const mockResult = {
-        ...mockAnalysisResults,
-        documentName: file.name,
-        totalPages: Math.floor(Math.random() * 50) + 20,
-        processingTime: Math.floor(Math.random() * 30) + 15
+      // Upload file to backend
+      const uploadResponse = await fetch('http://localhost:8000/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.detail || 'Upload failed');
+      }
+      
+      const uploadResult = await uploadResponse.json();
+      setDocumentId(uploadResult.id);
+      
+      // Get results from backend
+      const resultsResponse = await fetch(`http://localhost:8000/api/results/${uploadResult.id}`);
+      
+      if (!resultsResponse.ok) {
+        throw new Error('Failed to get analysis results');
+      }
+      
+      const resultsData = await resultsResponse.json();
+      
+      if (resultsData.status === 'failed') {
+        throw new Error(resultsData.error || 'Analysis failed');
+      }
+      
+      // Convert backend results to frontend format
+      const analysisResult: AnalysisResult = {
+        initiatives: resultsData.results.map((match: any) => ({
+          id: match.match_id,
+          framework: match.framework_name,
+          description: match.description,
+          evidence: match.evidence_text,
+          pageNumber: match.page_number,
+          confidence: match.confidence_score,
+          category: match.category as 'Environmental' | 'Social' | 'Governance'
+        })),
+        documentName: resultsData.metadata.document_name,
+        totalPages: resultsData.metadata.total_pages,
+        processingTime: resultsData.metadata.processing_time
       };
       
-      setAnalysisResult(mockResult);
+      setAnalysisResult(analysisResult);
       
       toast({
         title: "Analysis Complete",
-        description: `Found ${mockResult.initiatives.length} ESG initiatives in ${file.name}`,
+        description: `Found ${analysisResult.initiatives.length} ESG initiatives in ${file.name}`,
       });
     } catch (error) {
+      console.error('Analysis error:', error);
       toast({
         title: "Analysis Failed",
-        description: "There was an error processing your document. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error processing your document. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -66,6 +104,7 @@ const Index = () => {
   const handleReset = () => {
     setAnalysisResult(null);
     setUploadedFile(null);
+    setDocumentId(null);
     setIsAnalyzing(false);
   };
 
@@ -90,6 +129,7 @@ const Index = () => {
           <AnalysisResults 
             result={analysisResult} 
             onReset={handleReset}
+            documentId={documentId}
           />
         )}
       </main>

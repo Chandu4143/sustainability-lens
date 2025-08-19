@@ -85,7 +85,7 @@ class ESGMatch(BaseModel):
     description: str
     evidence: str
     page_number: int
-    confidence: int
+    confidence: float  # Changed from int to float to handle fuzzy match scores
     category: str
     bbox: List[float] = [0, 0, 100, 100]  # [x1, y1, x2, y2] as percentages
 
@@ -133,6 +133,13 @@ def run_tesseract_on_pages(pdf_path: str) -> List[Tuple[str, int]]:
     ocr_results = []
     
     try:
+        # Check if Tesseract is available
+        try:
+            pytesseract.get_tesseract_version()
+        except (EnvironmentError, FileNotFoundError) as e:
+            print(f"Tesseract is not installed or not in PATH. OCR functionality will be skipped. Install Tesseract to enable OCR: {e}")
+            return []
+        
         doc = fitz.open(pdf_path)
         
         for page_num in range(len(doc)):
@@ -158,37 +165,102 @@ def run_tesseract_on_pages(pdf_path: str) -> List[Tuple[str, int]]:
 
 def compute_sentence_bbox(sentence: str, page_layout: Dict[str, Any]) -> List[float]:
     """
-    Attempt to compute bounding box for a sentence using layout analysis.
+    Compute bounding box for a sentence using PyMuPDF text layout analysis.
     Returns [x1, y1, x2, y2] as percentages of page dimensions.
     """
     try:
-        # This is a simplified approach - in production, you'd want more sophisticated
-        # text matching using the text_dict structure from PyMuPDF
-        
         page_width = page_layout["width"]
         page_height = page_layout["height"]
+        text_dict = page_layout["text_dict"]
         
-        # For MVP, search for sentence in the raw text and estimate position
-        raw_text = page_layout["raw_text"]
+        # Clean sentence for better matching
         sentence_clean = re.sub(r'\s+', ' ', sentence.strip())
+        sentence_words = sentence_clean.lower().split()
         
-        # Find approximate position
-        start_idx = raw_text.find(sentence_clean[:50])  # Match first 50 chars
+        if not sentence_words:
+            return [10, 45, 90, 55]
+        
+        # Search for sentence words in text blocks
+        best_match = None
+        best_score = 0
+        
+        for block in text_dict.get("blocks", []):
+            if "lines" not in block:
+                continue
+                
+            for line in block["lines"]:
+                if "spans" not in line:
+                    continue
+                    
+                # Extract all text from this line
+                line_text = ""
+                line_bbox = None
+                
+                for span in line["spans"]:
+                    span_text = span.get("text", "")
+                    line_text += span_text + " "
+                    
+                    if line_bbox is None:
+                        line_bbox = span["bbox"]
+                    else:
+                        # Expand bounding box to include this span
+                        line_bbox = [
+                            min(line_bbox[0], span["bbox"][0]),
+                            min(line_bbox[1], span["bbox"][1]),
+                            max(line_bbox[2], span["bbox"][2]),
+                            max(line_bbox[3], span["bbox"][3])
+                        ]
+                
+                # Check if this line contains our sentence
+                line_text_clean = re.sub(r'\s+', ' ', line_text.strip().lower())
+                
+                # Calculate match score
+                words_found = 0
+                for word in sentence_words:
+                    if word in line_text_clean:
+                        words_found += 1
+                
+                match_score = words_found / len(sentence_words) if sentence_words else 0
+                
+                # If this is our best match so far
+                if match_score > best_score and match_score > 0.3 and line_bbox:
+                    best_score = match_score
+                    best_match = line_bbox
+        
+        if best_match:
+            # Convert absolute coordinates to percentages
+            x1_pct = (best_match[0] / page_width) * 100
+            y1_pct = (best_match[1] / page_height) * 100
+            x2_pct = (best_match[2] / page_width) * 100
+            y2_pct = (best_match[3] / page_height) * 100
+            
+            # Add some padding and ensure reasonable bounds
+            padding = 2
+            x1_pct = max(0, x1_pct - padding)
+            y1_pct = max(0, y1_pct - padding)
+            x2_pct = min(100, x2_pct + padding)
+            y2_pct = min(100, y2_pct + padding)
+            
+            return [x1_pct, y1_pct, x2_pct, y2_pct]
+        
+        # Fallback: try simple text search in raw text
+        raw_text = page_layout["raw_text"]
+        start_idx = raw_text.lower().find(sentence_clean[:50].lower())
         
         if start_idx != -1:
-            # Rough estimation: assume text flows top to bottom
-            # This is very approximate - real implementation would use text_dict
+            # Estimate position based on character position
             lines = raw_text[:start_idx].count('\n')
-            estimated_y = (lines / raw_text.count('\n')) * 100 if raw_text.count('\n') > 0 else 10
+            total_lines = raw_text.count('\n') + 1
+            estimated_y = (lines / total_lines) * 100 if total_lines > 0 else 10
             
-            return [10, max(0, estimated_y - 2), 90, min(100, estimated_y + 5)]
+            return [5, max(0, estimated_y - 3), 95, min(100, estimated_y + 8)]
         
-        # Fallback to page center
+        # Final fallback to page center
         return [10, 45, 90, 55]
         
     except Exception as e:
         print(f"Error computing bbox: {e}")
-        return [0, 0, 100, 100]  # Full page fallback
+        return [10, 45, 90, 55]  # Safe fallback
 
 def find_sentence_in_pages(sentence: str, page_layouts: List[Dict[str, Any]]) -> Tuple[int, List[float]]:
     """Find which page contains a sentence and compute its bounding box."""
