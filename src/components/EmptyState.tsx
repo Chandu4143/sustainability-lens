@@ -1,11 +1,32 @@
-import { FileText, Upload, Shield, Leaf, Users, Clock, Lock } from "lucide-react";
-import { FileUpload } from "./FileUpload";
+import React from "react";
+import { FileText, Upload, Shield, Leaf, Users, Clock, Lock, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface EmptyStateProps {
   onFileUpload: (file: File) => void;
 }
 
+const handleTrySample = async (onFileUpload: (file: File) => void) => {
+  try {
+    const res = await fetch("/sample.pdf");
+    if (!res.ok) throw new Error("Sample file not found");
+    const blob = await res.blob();
+    const file = new File([blob], "sample.pdf", { type: "application/pdf" });
+    onFileUpload(file);
+  } catch (e) {
+    alert("Sample not available. Place a sample.pdf in the public folder to enable this.");
+  }
+};
+
 export const EmptyState = ({ onFileUpload }: EmptyStateProps) => {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      onFileUpload(e.target.files[0]);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Hero Section */}
@@ -25,45 +46,58 @@ export const EmptyState = ({ onFileUpload }: EmptyStateProps) => {
           Extract ESG initiatives in seconds
         </h1>
 
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed mb-8">
           Upload a sustainability report — we highlight frameworks and link you to exact evidence inside the PDF. Works with scanned & text PDFs.
         </p>
 
-        {/* Micro-strap badges */}
-        <div className="mt-6 flex items-center justify-center gap-2">
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm">
-            <Shield className="w-4 h-4" /> Governance
-          </span>
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-sm">
-            <Leaf className="w-4 h-4" /> Environmental
-          </span>
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent-foreground text-sm">
-            <Users className="w-4 h-4" /> Social
-          </span>
+        {/* Primary CTA */}
+        <div className="space-y-4">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          
+          <Button 
+            size="lg" 
+            className="text-lg px-8 py-6 h-auto"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="w-5 h-5 mr-3" />
+            Upload PDF to Analyze
+          </Button>
+          
+          <div className="text-sm text-muted-foreground">
+            PDF only • up to 50MB • ~30–60s analysis
+          </div>
+          
+          {/* Secondary CTA */}
+          <div className="pt-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => handleTrySample(onFileUpload)}
+              className="text-primary hover:text-primary/80"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Try sample report
+            </Button>
+          </div>
         </div>
 
-        {/* Trust row */}
-        <div className="mt-4 flex items-center justify-center gap-6 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-2"><Lock className="w-4 h-4" /> Processed securely</span>
-          <span className="inline-flex items-center gap-2"><Clock className="w-4 h-4" /> Typical analysis 30–60s</span>
-          <span>No docs stored by default</span>
+        {/* Trust indicators */}
+        <div className="mt-8 flex items-center justify-center gap-6 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-2"><Lock className="w-4 h-4" /> Secure processing</span>
+          <span className="inline-flex items-center gap-2"><Shield className="w-4 h-4" /> No storage by default</span>
         </div>
-      </div>
 
-      {/* Upload Section */}
-      <div className="bg-card rounded-2xl shadow-large border p-8">
-        <div className="text-center mb-6">
-          <Upload className="w-8 h-8 text-primary mx-auto mb-3" />
-          <h2 className="text-2xl font-semibold text-foreground mb-2">Upload your sustainability report</h2>
-          <p className="text-muted-foreground">PDF up to 50MB. We’ll extract frameworks and link you directly to the evidence.</p>
-        </div>
-        
-        <FileUpload onFileUpload={onFileUpload} />
-        
-        <div className="mt-6 pt-6 border-t">
-          <p className="text-sm text-muted-foreground text-center">
-            Processed securely • Typical analysis 30–60s • No docs stored by default
-          </p>
+        {/* Framework badges */}
+        <div className="mt-6 flex items-center justify-center gap-2 text-xs">
+          <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground">SBTi</span>
+          <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground">GRI</span>
+          <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground">SLCP</span>
         </div>
       </div>
     </div>

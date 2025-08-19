@@ -5,6 +5,8 @@ Handles PDF text extraction, OCR, and fuzzy matching of ESG initiatives.
 
 import re
 import io
+import os
+import platform
 from typing import List, Tuple, Dict, Any, Optional
 from pathlib import Path
 from dataclasses import dataclass
@@ -14,6 +16,21 @@ import pytesseract
 from PIL import Image
 from rapidfuzz import fuzz, process
 from pydantic import BaseModel
+
+# Configure Tesseract path for Windows
+if platform.system() == "Windows":
+    # Common Tesseract installation paths on Windows
+    possible_paths = [
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        r"C:\Users\%USERNAME%\AppData\Local\Programs\Tesseract-OCR\tesseract.exe",
+    ]
+    
+    for path in possible_paths:
+        expanded_path = os.path.expandvars(path)
+        if os.path.exists(expanded_path):
+            pytesseract.pytesseract.tesseract_cmd = expanded_path
+            break
 
 # ESG Framework seed list - based on common sustainability reporting frameworks
 ESG_FRAMEWORKS = {
@@ -133,34 +150,74 @@ def run_tesseract_on_pages(pdf_path: str) -> List[Tuple[str, int]]:
     ocr_results = []
     
     try:
-        # Check if Tesseract is available
+        # Check if Tesseract is available and properly configured
         try:
-            pytesseract.get_tesseract_version()
+            version = pytesseract.get_tesseract_version()
+            print(f"Using Tesseract OCR version: {version}")
         except (EnvironmentError, FileNotFoundError) as e:
-            print(f"Tesseract is not installed or not in PATH. OCR functionality will be skipped. Install Tesseract to enable OCR: {e}")
+            error_msg = f"Tesseract OCR is not available: {e}"
+            print(error_msg)
+            
+            # Try to detect and suggest installation
+            if platform.system() == "Windows":
+                print("To install Tesseract on Windows:")
+                print("1. Run: winget install --id UB-Mannheim.TesseractOCR")
+                print("2. Or download from: https://github.com/UB-Mannheim/tesseract/wiki")
+                print("3. Restart your application after installation")
+            elif platform.system() == "Darwin":  # macOS
+                print("To install Tesseract on macOS: brew install tesseract")
+            else:  # Linux
+                print("To install Tesseract on Linux: sudo apt-get install tesseract-ocr")
+            
             return []
         
         doc = fitz.open(pdf_path)
+        total_pages = len(doc)
+        print(f"Starting OCR processing for {total_pages} pages...")
         
-        for page_num in range(len(doc)):
-            page = doc.load_page(page_num)
-            
-            # Convert page to image
-            mat = fitz.Matrix(2, 2)  # 2x zoom for better OCR
-            pix = page.get_pixmap(matrix=mat)
-            img_data = pix.tobytes("png")
-            
-            # Run OCR
-            image = Image.open(io.BytesIO(img_data))
-            ocr_text = pytesseract.image_to_string(image, lang='eng')
-            
-            ocr_results.append((ocr_text, page_num + 1))
+        for page_num in range(total_pages):
+            try:
+                page = doc.load_page(page_num)
+                
+                # Convert page to image with higher resolution for better OCR
+                mat = fitz.Matrix(2.5, 2.5)  # 2.5x zoom for better OCR accuracy
+                pix = page.get_pixmap(matrix=mat)
+                img_data = pix.tobytes("png")
+                
+                # Run OCR with optimized settings
+                image = Image.open(io.BytesIO(img_data))
+                
+                # OCR configuration for better accuracy
+                config = '--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,!?;:()[]{}"\'-+=%@#$&*/<>|\\~`^_'
+                
+                ocr_text = pytesseract.image_to_string(
+                    image, 
+                    lang='eng',
+                    config=config
+                )
+                
+                if ocr_text.strip():  # Only add non-empty results
+                    ocr_results.append((ocr_text, page_num + 1))
+                    print(f"OCR completed for page {page_num + 1}/{total_pages} - extracted {len(ocr_text)} characters")
+                else:
+                    print(f"OCR found no text on page {page_num + 1}/{total_pages}")
+                    
+            except Exception as page_error:
+                print(f"Error processing page {page_num + 1}: {page_error}")
+                continue
         
         doc.close()
+        
+        if ocr_results:
+            total_text = sum(len(text) for text, _ in ocr_results)
+            print(f"OCR processing completed: {len(ocr_results)} pages processed, {total_text} total characters extracted")
+        else:
+            print("OCR processing completed but no text was extracted")
+            
         return ocr_results
         
     except Exception as e:
-        print(f"Error running OCR on {pdf_path}: {e}")
+        print(f"Critical error during OCR processing of {pdf_path}: {e}")
         return []
 
 def compute_sentence_bbox(sentence: str, page_layout: Dict[str, Any]) -> List[float]:
@@ -374,16 +431,16 @@ def generate_framework_description(framework_name: str) -> str:
     """Generate a description for the ESG framework."""
     
     descriptions = {
-        "Science Based Targets initiative": "Nike has committed to science-based targets for reducing greenhouse gas emissions in line with climate science.",
-        "Social & Labor Convergence Program": "Nike conducts supplier assessments through the SLCP framework to ensure social and labor compliance across its supply chain.",
+        "Science Based Targets initiative": "Science-based targets for reducing greenhouse gas emissions in line with climate science.",
+        "Social & Labor Convergence Program": "Supplier assessments conducted via the SLCP framework to ensure social and labor compliance across the supply chain.",
         "Higg Facility Environmental Module": "Environmental assessments of manufacturing facilities using the Sustainable Apparel Coalition's Higg FEM tool.",
-        "Zero Discharge of Hazardous Chemicals": "Nike implements ZDHC wastewater testing protocols to eliminate hazardous chemical discharge from manufacturing processes.",
-        "Global Reporting Initiative": "Nike follows GRI standards for sustainability reporting and disclosure of environmental, social and governance performance.",
-        "Task Force on Climate-related Financial Disclosures": "Nike provides climate-related financial disclosures following TCFD recommendations for governance, strategy, risk management and metrics.",
-        "Fair Labor Association": "Nike maintains accreditation with the Fair Labor Association for workplace standards monitoring and compliance.",
-        "UN Global Compact": "Nike is a signatory to the UN Global Compact, committing to align operations with universal principles on human rights, labor, environment and anti-corruption.",
-        "Carbon Disclosure Project": "Nike participates in CDP climate and environmental disclosure programs for transparency in environmental impact.",
-        "Sustainability Accounting Standards Board": "Nike follows SASB standards for industry-specific sustainability accounting and disclosure.",
+        "Zero Discharge of Hazardous Chemicals": "Implementation of ZDHC wastewater testing protocols to eliminate hazardous chemical discharge from manufacturing processes.",
+        "Global Reporting Initiative": "Reporting aligned to GRI standards covering environmental, social and governance performance.",
+        "Task Force on Climate-related Financial Disclosures": "Climate-related financial disclosures following TCFD recommendations for governance, strategy, risk management and metrics.",
+        "Fair Labor Association": "Accreditation and monitoring aligned with Fair Labor Association workplace standards.",
+        "UN Global Compact": "Signatory to the UN Global Compact with commitments to human rights, labor, environment and anti-corruption principles.",
+        "Carbon Disclosure Project": "Participation in CDP climate and environmental disclosure programs for transparency in environmental impact.",
+        "Sustainability Accounting Standards Board": "Disclosure aligned to SASB standards for industry-specific sustainability accounting.",
         "ISO 14001": "Environmental management system certification demonstrating commitment to environmental performance improvement.",
         "B Corporation Certification": "Certification demonstrating high standards of social and environmental performance, accountability, and transparency.",
         "Forest Stewardship Council": "FSC certification ensures responsible forestry practices in supply chain materials and packaging.",

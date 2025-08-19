@@ -71,12 +71,12 @@ const Index = () => {
       // Convert backend results to frontend format
       const analysisResult: AnalysisResult = {
         initiatives: resultsData.results.map((match: any) => ({
-          id: match.match_id,
-          framework: match.framework_name,
+          id: match.id,
+          framework: match.framework,
           description: match.description,
-          evidence: match.evidence_text,
+          evidence: match.evidence,
           pageNumber: match.page_number,
-          confidence: match.confidence_score,
+          confidence: match.confidence,
           category: match.category as 'Environmental' | 'Social' | 'Governance',
           bbox: match.bbox || [10, 10, 90, 20] // Default bbox if not provided by backend
         })),
@@ -124,7 +124,10 @@ const Index = () => {
         )}
         
         {isAnalyzing && (
-          <LoadingState fileName={uploadedFile?.name || ""} />
+          <LoadingState 
+            fileName={uploadedFile?.name || ""} 
+            onCancel={handleReset}
+          />
         )}
         
         {analysisResult && (

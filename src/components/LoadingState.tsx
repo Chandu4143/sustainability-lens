@@ -1,20 +1,22 @@
-import { useState, useEffect } from "react";
-import { FileText, Brain, Search, CheckCircle } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Upload, FileText, Search, CheckCircle, X } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface LoadingStateProps {
   fileName: string;
+  onCancel?: () => void;
 }
 
 const steps = [
-  { id: 1, label: "Processing document", icon: FileText },
-  { id: 2, label: "Extracting text content", icon: Search },
-  { id: 3, label: "Analyzing ESG frameworks", icon: Brain },
-  { id: 4, label: "Generating results", icon: CheckCircle },
+  { id: 1, label: "Uploading", icon: Upload, description: "Transferring document to server" },
+  { id: 2, label: "OCR/Parsing", icon: FileText, description: "Extracting text from PDF" },
+  { id: 3, label: "Matching", icon: Search, description: "Finding ESG framework matches" },
+  { id: 4, label: "Finalizing", icon: CheckCircle, description: "Preparing analysis results" },
 ];
 
-export const LoadingState = ({ fileName }: LoadingStateProps) => {
+export const LoadingState = ({ fileName, onCancel }: LoadingStateProps) => {
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(1);
 
@@ -44,12 +46,25 @@ export const LoadingState = ({ fileName }: LoadingStateProps) => {
       <div className="bg-card rounded-2xl shadow-large border p-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow animate-pulse">
-            <Brain className="w-8 h-8 text-primary-foreground" />
+          <div className="flex items-center justify-between mb-4">
+            <div></div> {/* Spacer */}
+            <div className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center shadow-glow animate-pulse">
+              {steps.find(step => step.id === currentStep)?.icon && 
+                React.createElement(steps.find(step => step.id === currentStep)!.icon, { className: "w-8 h-8 text-primary-foreground" })
+              }
+            </div>
+            {onCancel && (
+              <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </Button>
+            )}
           </div>
           <h2 className="text-2xl font-semibold text-foreground mb-2">Analyzing Your Document</h2>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-2">
             Processing <span className="font-medium text-foreground">{fileName}</span> for ESG initiatives
+          </p>
+          <p className="text-sm text-primary font-medium">
+            {steps.find(step => step.id === currentStep)?.label}: {steps.find(step => step.id === currentStep)?.description}
           </p>
         </div>
 
@@ -91,17 +106,29 @@ export const LoadingState = ({ fileName }: LoadingStateProps) => {
                 >
                   <Icon className="w-4 h-4" />
                 </div>
-                <span
-                  className={cn(
-                    "text-sm font-medium transition-smooth",
-                    isActive && "text-primary",
-                    isCompleted && "text-success",
-                    !isActive && !isCompleted && "text-muted-foreground"
-                  )}
-                >
-                  {step.label}
-                  {isActive && "..."}
-                </span>
+                <div className="flex-1">
+                  <span
+                    className={cn(
+                      "text-sm font-medium transition-smooth block",
+                      isActive && "text-primary",
+                      isCompleted && "text-success",
+                      !isActive && !isCompleted && "text-muted-foreground"
+                    )}
+                  >
+                    {step.label}
+                    {isActive && "..."}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-xs transition-smooth block mt-1",
+                      isActive && "text-primary/70",
+                      isCompleted && "text-success/70",
+                      !isActive && !isCompleted && "text-muted-foreground/70"
+                    )}
+                  >
+                    {step.description}
+                  </span>
+                </div>
               </div>
             );
           })}

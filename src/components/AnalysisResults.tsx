@@ -42,17 +42,24 @@ const categoryColors = {
 
 export const AnalysisResults = ({ result, onReset, documentId }: AnalysisResultsProps) => {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("confidence");
+  const [sortBy, setSortBy] = useState<string>("most-relevant");
   const [isExporting, setIsExporting] = useState(false);
   const [showPDFViewer, setShowPDFViewer] = useState(false);
   const [highlightedInitiative, setHighlightedInitiative] = useState<ESGInitiative | undefined>();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const filteredInitiatives = result.initiatives.filter(initiative => 
     selectedCategory === "all" || initiative.category === selectedCategory
   );
 
   const sortedInitiatives = [...filteredInitiatives].sort((a, b) => {
+    if (sortBy === "most-relevant") {
+      // Most relevant combines confidence and page proximity
+      const aRelevanceScore = a.confidence + (100 - Math.abs(a.pageNumber - 1) * 2); // Prefer earlier pages slightly
+      const bRelevanceScore = b.confidence + (100 - Math.abs(b.pageNumber - 1) * 2);
+      return bRelevanceScore - aRelevanceScore;
+    }
     if (sortBy === "confidence") return b.confidence - a.confidence;
     if (sortBy === "category") return a.category.localeCompare(b.category);
     if (sortBy === "framework") return a.framework.localeCompare(b.framework);
@@ -85,6 +92,25 @@ export const AnalysisResults = ({ result, onReset, documentId }: AnalysisResults
     } catch {
       alert('Copy failed');
     }
+  };
+
+  const handleExpandAll = () => {
+    const allIds = new Set(sortedInitiatives.map(initiative => initiative.id));
+    setExpandedIds(allIds);
+  };
+
+  const handleCollapseAll = () => {
+    setExpandedIds(new Set());
+  };
+
+  const toggleExpanded = (id: string) => {
+    const newExpandedIds = new Set(expandedIds);
+    if (newExpandedIds.has(id)) {
+      newExpandedIds.delete(id);
+    } else {
+      newExpandedIds.add(id);
+    }
+    setExpandedIds(newExpandedIds);
   };
 
   const handleExportResults = async () => {
@@ -259,11 +285,20 @@ export const AnalysisResults = ({ result, onReset, documentId }: AnalysisResults
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="most-relevant">Most Relevant</SelectItem>
                   <SelectItem value="confidence">Confidence</SelectItem>
                   <SelectItem value="category">Category</SelectItem>
                   <SelectItem value="framework">Framework</SelectItem>
                 </SelectContent>
               </Select>
+              <div className="flex items-center space-x-2">
+                <Button variant="outline" size="sm" onClick={handleExpandAll}>
+                  Expand All
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleCollapseAll}>
+                  Collapse All
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -296,10 +331,14 @@ export const AnalysisResults = ({ result, onReset, documentId }: AnalysisResults
                         {initiative.description}
                       </p>
 
-                      <button className="text-sm text-primary underline mb-3" onClick={() => setExpandedId(expandedId === initiative.id ? null : initiative.id)} aria-expanded={expandedId === initiative.id}>
-                        {expandedId === initiative.id ? 'Hide snippet' : 'Show snippet and actions'}
+                      <button 
+                        className="text-sm text-primary underline mb-3" 
+                        onClick={() => toggleExpanded(initiative.id)} 
+                        aria-expanded={expandedIds.has(initiative.id)}
+                      >
+                        {expandedIds.has(initiative.id) ? 'Hide snippet' : 'Show snippet and actions'}
                       </button>
-                      {expandedId === initiative.id && (
+                      {expandedIds.has(initiative.id) && (
                         <div className="bg-muted/50 p-4 rounded-lg mb-4">
                           <p className="text-sm font-medium text-foreground mb-2">Evidence from document:</p>
                           <p className="text-sm text-muted-foreground italic mb-3">
@@ -312,6 +351,16 @@ export const AnalysisResults = ({ result, onReset, documentId }: AnalysisResults
                             <Button variant="outline" size="sm" onClick={() => handleViewInDocument(initiative)}>
                               <ExternalLink className="w-4 h-4 mr-2" /> Jump to evidence
                             </Button>
+                            {documentId && (
+                              <a
+                                href={`http://localhost:8000/api/pdf/${documentId}#page=${initiative.pageNumber}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sm underline text-primary"
+                              >
+                                Open in new tab
+                              </a>
+                            )}
                           </div>
                         </div>
                       )}
@@ -328,9 +377,21 @@ export const AnalysisResults = ({ result, onReset, documentId }: AnalysisResults
                           </span>
                         </div>
                         
-                        <Button variant="outline" size="sm" onClick={() => handleViewInDocument(initiative)}>
-                          <ExternalLink className="w-4 h-4 mr-2" /> View in Document
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleViewInDocument(initiative)}>
+                            <ExternalLink className="w-4 h-4 mr-2" /> View in Document
+                          </Button>
+                          {documentId && (
+                            <a
+                              href={`http://localhost:8000/api/pdf/${documentId}#page=${initiative.pageNumber}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sm underline text-primary"
+                            >
+                              Open tab
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -345,9 +406,14 @@ export const AnalysisResults = ({ result, onReset, documentId }: AnalysisResults
                 <Filter className="w-8 h-8 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">No initiatives found</h3>
-              <p className="text-muted-foreground">
-                Try adjusting your filters to see more results.
-              </p>
+              <div className="text-muted-foreground space-y-2">
+                <p>We couldn't find ESG initiatives related to common frameworks.</p>
+                <ul className="list-disc list-inside text-sm">
+                  <li>Try a higher-quality PDF or ensure text is selectable.</li>
+                  <li>If your document is scanned, install Tesseract OCR and re-run.</li>
+                  <li>Upload another section or a different report version.</li>
+                </ul>
+              </div>
             </div>
           )}
         </div>

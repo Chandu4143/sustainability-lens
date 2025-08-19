@@ -1,4 +1,4 @@
-# Insight Scan Dialog Backend
+# Sustainability Lens Backend
 
 High-performance FastAPI backend for AI-powered ESG initiative extraction from PDF documents. This service provides intelligent document processing, OCR capabilities, and advanced text analysis to identify sustainability reporting frameworks and initiatives.
 
@@ -117,12 +117,12 @@ curl -X GET "http://localhost:8000/api/results/550e8400-e29b-41d4-a716-446655440
   "status": "ready",
   "results": [
     {
-      "match_id": "1",
-      "framework_name": "Science Based Targets initiative",
+      "id": "1",
+      "framework": "Science Based Targets initiative",
       "description": "Science-based emission reduction targets aligned with climate science",
-      "evidence_text": "In addition to these 2030 targets aligned to the Science Based Targets initiative (SBTi)...",
+      "evidence": "In addition to these 2030 targets aligned to the Science Based Targets initiative (SBTi)...",
       "page_number": 42,
-      "confidence_score": 95,
+      "confidence": 95,
       "category": "Environmental",
       "bbox": [10, 45, 90, 55]
     }
@@ -131,7 +131,7 @@ curl -X GET "http://localhost:8000/api/results/550e8400-e29b-41d4-a716-446655440
     "document_name": "sustainability_report.pdf",
     "total_pages": 85,
     "processing_time": 42,
-    "text_extraction_method": "selectable",
+    "extraction_method": "selectable",
     "text_length": 125847
   }
 }
@@ -177,12 +177,7 @@ curl -X GET "http://localhost:8000/api/health"
 ```json
 {
   "status": "healthy",
-  "timestamp": "2024-01-15T10:30:00Z",
-  "version": "1.0.0",
-  "dependencies": {
-    "database": "connected",
-    "tesseract": "available"
-  }
+  "service": "sustainability-lens-api"
 }
 ```
 

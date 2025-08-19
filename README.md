@@ -1,4 +1,4 @@
-# Insight Scan Dialog
+# Sustainability Lens
 
 An AI-powered ESG (Environmental, Social, Governance) initiative extraction tool that analyzes PDF documents to identify and classify sustainability reporting frameworks and initiatives.
 
@@ -101,6 +101,14 @@ npm run dev
 - Backend API: http://localhost:8000
 - API Documentation: http://localhost:8000/docs
 
+### Demo Video
+
+Add your Loom or YouTube demo link here:
+
+- Demo: https://your-demo-link-here
+
+If sharing publicly, ensure any sensitive documents are redacted or use the included sample.
+
 ## 📚 Usage
 
 1. **Upload Document**: Drag and drop or select a PDF file
@@ -108,6 +116,8 @@ npm run dev
 3. **Review Results**: Browse detected initiatives with confidence scores
 4. **Filter & Sort**: Use category filters and sorting options to focus on specific results
 5. **Export**: Download analysis results as JSON for further processing
+
+If no relevant initiatives are found, the app clearly communicates this and suggests next steps (e.g., trying OCR by ensuring Tesseract is installed, uploading a higher-quality PDF, or adjusting search terms).
 
 ## 🔧 Tech Stack
 
@@ -173,6 +183,10 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 - Use Docker containers for deployment
 - Implement background task processing
 
+## DECISIONS
+
+See `DECISIONS.md` for a concise write-up on product choices and tradeoffs.
+
 ## 🔍 ESG Frameworks Supported
 
 The system can detect and classify initiatives from 15+ major ESG frameworks:
@@ -188,6 +202,10 @@ The system can detect and classify initiatives from 15+ major ESG frameworks:
 - **Sustainable Apparel Coalition**
 - **WRAP (Worldwide Responsible Accredited Production)**
 - **And more...**
+
+## 📄 Decisions & Next Steps
+
+See `DECISIONS.md` for key product choices, tradeoffs, and what to tackle next.
 
 ## 🤝 Contributing
 

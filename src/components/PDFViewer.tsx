@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, X } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { ESGInitiative } from '@/pages/Index';
 
@@ -57,6 +58,8 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
   const [scale, setScale] = useState<number>(1.2);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
+  const [pageInput, setPageInput] = useState<string>('');
+  const [sidebarTab, setSidebarTab] = useState<string>('current-page');
 
   const pdfUrl = `http://localhost:8000/api/pdf/${documentId}`;
   
@@ -91,6 +94,51 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
         console.error('PDF URL test failed:', error);
       });
   }, [pdfUrl]);
+
+  // Keyboard shortcuts
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.target && (event.target as HTMLElement).tagName === 'INPUT') {
+        return; // Don't handle keyboard shortcuts when typing in input fields
+      }
+
+      switch (event.key) {
+        case 'ArrowLeft':
+        case 'ArrowUp':
+          event.preventDefault();
+          goToPreviousPage();
+          break;
+        case 'ArrowRight':
+        case 'ArrowDown':
+          event.preventDefault();
+          goToNextPage();
+          break;
+        case '+':
+        case '=':
+          event.preventDefault();
+          zoomIn();
+          break;
+        case '-':
+          event.preventDefault();
+          zoomOut();
+          break;
+        case 'Escape':
+          event.preventDefault();
+          onClose();
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [currentPage, numPages, scale]);
+
+  // Update page input when current page changes
+  React.useEffect(() => {
+    setPageInput(currentPage.toString());
+  }, [currentPage]);
 
   const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
     console.log('PDF loaded successfully!', { numPages, documentName });
@@ -165,6 +213,20 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
     setCurrentPage(initiative.pageNumber);
   };
 
+  const handlePageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPageInput(e.target.value);
+  };
+
+  const handlePageInputSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const pageNum = parseInt(pageInput);
+    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= numPages) {
+      setCurrentPage(pageNum);
+    } else {
+      setPageInput(currentPage.toString()); // Reset to current page if invalid
+    }
+  };
+
   // Get highlights for current page
   const currentPageInitiatives = initiatives.filter(initiative => 
     initiative.pageNumber === currentPage
@@ -204,29 +266,44 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
                 Viewing: {highlightedInitiative.framework}
               </Badge>
             )}
+            <div className="text-xs text-muted-foreground hidden md:block">
+              Use ←→ for pages, +/- for zoom, Esc to close
+            </div>
           </div>
           
           <div className="flex items-center space-x-2">
             {/* Navigation controls */}
-            <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={goToPreviousPage}
                 disabled={currentPage <= 1}
+                aria-label="Previous page"
+                title="Previous page (← or ↑)"
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
               
-              <span className="px-2">
-                {currentPage} / {numPages}
-              </span>
+              <form onSubmit={handlePageInputSubmit} className="flex items-center space-x-1">
+                <input
+                  type="text"
+                  value={pageInput}
+                  onChange={handlePageInputChange}
+                  className="w-12 px-2 py-1 text-center text-sm border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                  aria-label="Current page"
+                />
+                <span>/</span>
+                <span className="font-medium">{numPages}</span>
+              </form>
               
               <Button
                 variant="outline"
                 size="sm"
                 onClick={goToNextPage}
                 disabled={currentPage >= numPages}
+                aria-label="Next page"
+                title="Next page (→ or ↓)"
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
@@ -234,24 +311,48 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
 
             {/* Zoom controls */}
             <div className="flex items-center space-x-1">
-              <Button variant="outline" size="sm" onClick={zoomOut}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={zoomOut}
+                aria-label="Zoom out"
+                title="Zoom out (-)"
+              >
                 <ZoomOut className="w-4 h-4" />
               </Button>
-              <span className="text-sm text-muted-foreground px-2">
+              <span className="text-sm text-muted-foreground px-2 min-w-[3rem] text-center">
                 {Math.round(scale * 100)}%
               </span>
-              <Button variant="outline" size="sm" onClick={zoomIn}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={zoomIn}
+                aria-label="Zoom in"
+                title="Zoom in (+)"
+              >
                 <ZoomIn className="w-4 h-4" />
               </Button>
             </div>
 
             {/* Download */}
-            <Button variant="outline" size="sm" onClick={downloadPDF}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={downloadPDF}
+              aria-label="Download PDF"
+              title="Download PDF"
+            >
               <Download className="w-4 h-4" />
             </Button>
 
             {/* Close */}
-            <Button variant="outline" size="sm" onClick={onClose}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onClose}
+              aria-label="Close viewer"
+              title="Close viewer (Esc)"
+            >
               <X className="w-4 h-4" />
             </Button>
           </div>
@@ -259,14 +360,73 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
 
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar with initiatives */}
-          <div className="w-80 border-r bg-muted/30 overflow-y-auto" aria-label="Evidence list">
-            <div className="p-4">
-              <h3 className="font-medium text-foreground mb-3">
-                Initiatives in Document ({initiatives.length})
-              </h3>
+          <div className="w-80 border-r bg-muted/30 flex flex-col" aria-label="Evidence list">
+            <Tabs value={sidebarTab} onValueChange={setSidebarTab} className="flex-1 flex flex-col">
+              <div className="p-4 pb-0">
+                <h3 className="font-medium text-foreground mb-3">
+                  Evidence ({initiatives.length} total)
+                </h3>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="current-page">This Page</TabsTrigger>
+                  <TabsTrigger value="all">All Pages</TabsTrigger>
+                </TabsList>
+              </div>
               
-              <div className="space-y-2">
-                {initiatives.map((initiative) => (
+              <TabsContent value="current-page" className="flex-1 overflow-y-auto p-4 pt-2">
+                <div className="space-y-2">
+                  {currentPageInitiatives.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      No evidence on this page
+                    </div>
+                  ) : (
+                    currentPageInitiatives.map((initiative) => (
+                      <div
+                        key={initiative.id}
+                        className={cn(
+                          "p-3 rounded-lg border cursor-pointer transition-colors text-left bg-primary/10 border-primary",
+                          highlightedInitiative?.id === initiative.id && "ring-2 ring-primary"
+                        )}
+                        onClick={() => goToInitiative(initiative)}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "text-xs",
+                              initiative.category === 'Environmental' && "border-green-500 text-green-700",
+                              initiative.category === 'Social' && "border-blue-500 text-blue-700",
+                              initiative.category === 'Governance' && "border-purple-500 text-purple-700"
+                            )}
+                          >
+                            {initiative.category}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Page {initiative.pageNumber}
+                          </span>
+                        </div>
+                        
+                        <h4 className="font-medium text-sm text-foreground mb-1">
+                          {initiative.framework}
+                        </h4>
+                        
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {initiative.evidence}
+                        </p>
+                        
+                        <div className="flex items-center justify-between mt-2">
+                          <Badge variant="secondary" className="text-xs">
+                            {Math.round(initiative.confidence)}% confidence
+                          </Badge>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="all" className="flex-1 overflow-y-auto p-4 pt-2">
+                <div className="space-y-2">
+                  {initiatives.map((initiative) => (
                   <div
                     key={initiative.id}
                     className={cn(
@@ -309,9 +469,10 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
                       </Badge>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                  ))}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* PDF content */}

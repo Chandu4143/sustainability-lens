@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
-import { Upload, FileText, X, AlertCircle, Shield, Clock, Sparkles } from "lucide-react";
+import { Upload, FileText, X, AlertCircle, Shield, Clock, Sparkles, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -13,6 +14,7 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string>("");
   const [deleteAfter, setDeleteAfter] = useState<boolean>(true);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -160,6 +162,11 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
             <p className="text-xs text-muted-foreground mt-3">
               PDF files only • Maximum 50MB
             </p>
+            
+            {/* Inline error under CTA */}
+            {error && (
+              <p className="text-sm text-destructive mt-2">{error}</p>
+            )}
 
             {/* What we look for */}
             <div className="mt-4 flex items-center justify-center gap-2 text-xs">
@@ -220,23 +227,39 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
               </Button>
             </div>
 
-            {/* Privacy controls */}
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <div className="inline-flex items-center gap-2"><Shield className="w-4 h-4" /> Processed securely • No docs stored by default</div>
-              <label className="inline-flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={deleteAfter} onChange={(e) => setDeleteAfter(e.target.checked)} />
-                Delete file after analysis
-              </label>
+            {/* Privacy info and Advanced controls */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-center text-xs text-muted-foreground">
+                <div className="inline-flex items-center gap-2"><Shield className="w-4 h-4" /> Processed securely • No docs stored by default</div>
+              </div>
+              
+              {/* Advanced collapsible section */}
+              <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-6 p-0 text-xs text-muted-foreground hover:text-foreground">
+                    <span className="mr-1">Advanced</span>
+                    <ChevronDown className={cn("w-3 h-3 transition-transform", advancedOpen && "rotate-180")} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <div className="p-3 bg-muted/30 rounded-lg">
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-xs">
+                      <input 
+                        type="checkbox" 
+                        checked={deleteAfter} 
+                        onChange={(e) => setDeleteAfter(e.target.checked)}
+                        className="w-3 h-3" 
+                      />
+                      Delete file after analysis
+                    </label>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           </div>
         )}
 
-        {error && (
-          <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 text-destructive" />
-            <p className="text-sm text-destructive">{error}</p>
-          </div>
-        )}
+
       </div>
     </div>
   );
