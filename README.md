@@ -221,8 +221,3 @@ For support and questions:
 - Check the [backend README](./backend/README.md) for detailed API documentation
 - Review the troubleshooting section in backend documentation
 - Open an issue for bugs or feature requests
-
-## 🔗 Links
-
-- **Lovable Project**: https://lovable.dev/projects/f0b5db6b-3061-45c0-bc0e-fc3f79eca748
-- **Documentation**: [Setting up custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
